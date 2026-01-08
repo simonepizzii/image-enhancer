@@ -1,5 +1,6 @@
 from cog import BasePredictor, Input, Path
-from PIL import Image, ImageFilter, ImageEnhance
+from PIL import Image
+from rembg import remove
 
 class Predictor(BasePredictor):
     def setup(self):
@@ -7,31 +8,23 @@ class Predictor(BasePredictor):
 
     def predict(
         self,
-        image: Path = Input(description="Upload an image to enhance"),
-        mode: str = Input(choices=["photo", "screenshot", "anime"], default="photo")
+        image: Path = Input(description="Upload a portrait, product, or object photo"),
+        format: str = Input(choices=["png", "jpg"], default="png", description="Output format (PNG with transparency or JPG with white background)"),
+        background_color: str = Input(default="#FFFFFF", description="Background color in hex (used only for JPG)")
     ) -> Path:
-        img = Image.open(str(image)).convert("RGB")
+        input_img = Image.open(str(image)).convert("RGB")
+        output_img = remove(input_img)
 
-        if mode == "photo":
-            # Migliora foto reali
-            sharp = img.filter(ImageFilter.UnsharpMask(radius=1.2, percent=150, threshold=3))
-            contrast = ImageEnhance.Contrast(sharp).enhance(1.1)
-            bright = ImageEnhance.Brightness(contrast).enhance(1.05)
-            img = bright
+        output_path = "/tmp/output.png"
+        if format == "png":
+            output_img.save(output_path, "PNG")
+        else:
+            r = int(background_color[1:3], 16)
+            g = int(background_color[3:5], 16)
+            b = int(background_color[5:7], 16)
+            bg = Image.new("RGB", output_img.size, (r, g, b))
+            bg.paste(output_img, mask=output_img.split()[-1])
+            bg.save("/tmp/output.jpg", "JPEG", quality=95)
+            output_path = "/tmp/output.jpg"
 
-        elif mode == "screenshot":
-            # Migliora screenshot (testo più nitido)
-            img = img.filter(ImageFilter.SHARPEN)
-            img = img.filter(ImageFilter.SMOOTH_MORE)
-
-        elif mode == "anime":
-            # Migliora anime-style
-            img = img.filter(ImageFilter.UnsharpMask(radius=1.0, percent=180, threshold=0))
-
-        # Upscale x2 con LANCZOS (miglior qualità non-AI)
-        w, h = img.size
-        img = img.resize((w*2, h*2), Image.LANCZOS)
-
-        output_path = "/tmp/output.jpg"
-        img.save(output_path, quality=95)
         return Path(output_path)

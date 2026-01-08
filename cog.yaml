@@ -5,5 +5,6 @@ build:
     - "libglib2.0-0"
   python_version: "3.12"
   python_packages:
+    - "rembg==2.0.72"
     - "pillow"
 predict: "predict.py:Predictor"
